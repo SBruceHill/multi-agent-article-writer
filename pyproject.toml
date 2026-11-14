@@ -1,0 +1,26 @@
+[project]
+name = "multi-agent-article-writer"
+version = "0.1.0"
+description = "Orchestrator-led multi-agent article writer with handoffs, guardrails, and evals"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "S. Bruce Hill" }]
+dependencies = [
+    "openai",
+    "openai-agents",
+    "ddgs",
+    "trafilatura",
+    "pydantic",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "pytest"]
+
+[tool.ruff]
+line-length = 100
+extend-exclude = ["notebooks"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

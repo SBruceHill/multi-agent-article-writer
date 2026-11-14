@@ -1,0 +1,28 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+ai_env/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Local data and generated artifacts
+chroma*/
+data/
+images/
+*.sqlite3
+*.db
+
+# OS and editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
