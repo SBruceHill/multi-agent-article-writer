@@ -4,6 +4,7 @@ import json
 import pytest
 from agents.tool_context import ToolContext
 
+from article_writer.models import ResearchState
 from article_writer.tools import fetch
 
 
@@ -15,16 +16,25 @@ def no_live_search(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clean_run_state():
-    """Start every test with no sources read and no blocked domains."""
-    fetch.READ_URLS.clear()
+    """Start every test with no blocked domains."""
     fetch.BLOCKED_DOMAINS.clear()
     yield
-    fetch.READ_URLS.clear()
     fetch.BLOCKED_DOMAINS.clear()
 
 
-def invoke_tool(tool, **arguments) -> str:
+@pytest.fixture
+def state() -> ResearchState:
+    """A fresh research run state (the set of sources read so far)."""
+    return ResearchState()
+
+
+@pytest.fixture
+def read_urls(state) -> set[str]:
+    return state.read_urls
+
+
+def invoke_tool(tool, *, run_state=None, **arguments) -> str:
     """Call a @function_tool the way the SDK does, through FunctionTool.on_invoke_tool."""
-    ctx = ToolContext(context=None, tool_name=tool.name, tool_call_id="call_1",
+    ctx = ToolContext(context=run_state, tool_name=tool.name, tool_call_id="call_1",
                       tool_arguments=json.dumps(arguments))
     return asyncio.run(tool.on_invoke_tool(ctx, json.dumps(arguments)))

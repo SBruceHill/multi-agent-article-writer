@@ -2,10 +2,6 @@
 
 Researches every topic in TOPICS, judges each brief, writes output/evals/<timestamp>.csv,
 and prints the failure rate.
-
-NOTE: READ_URLS in tools/fetch.py is a module global shared by all threads, so concurrent
-topics see each other's read sources. Scores from this runner are affected until it moves
-into the SDK run context.
 """
 
 import asyncio
@@ -32,9 +28,10 @@ def run_research(topic: str, max_turns: int = config.RESEARCH_MAX_TURNS) -> str:
     from agents import Runner
 
     from article_writer.agents.research import research_agent
+    from article_writer.models import ResearchState
 
     # asyncio.run gives each worker thread its own event loop
-    result = asyncio.run(Runner.run(research_agent, input=topic, max_turns=max_turns))
+    result = asyncio.run(Runner.run(research_agent, input=topic, context=ResearchState(), max_turns=max_turns))
     return str(result.final_output)
 
 

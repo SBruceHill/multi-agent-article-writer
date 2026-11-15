@@ -1,4 +1,4 @@
-"""Page fetching and the per-run source bookkeeping (READ_URLS, BLOCKED_DOMAINS)."""
+"""Page fetching and source bookkeeping (BLOCKED_DOMAINS here, read URLs in ResearchState)."""
 
 import logging
 import re
@@ -7,20 +7,18 @@ from typing import Literal
 from urllib.parse import urlparse
 
 import trafilatura
-from agents import function_tool
+from agents import RunContextWrapper, function_tool
 from trafilatura.downloads import fetch_response
 from trafilatura.settings import use_config
 
 from article_writer.config import FETCH_TIMEOUT, MIN_SOURCE_CHARS, REQUIRED_SOURCES
+from article_writer.models import ResearchState
 
 logger = logging.getLogger(__name__)
 
 # Domains that refused a fetch. Deliberately module level: it is a per-domain cache of
 # sites that refuse fetches, shared by every research run in this process.
 BLOCKED_DOMAINS: set[str] = set()
-
-# URLs read successfully. Per-URL dedupe and the counter behind source_progress().
-READ_URLS: set[str] = set()
 
 # Statuses that mean only this page is missing, not that the site is blocking us
 PAGE_ONLY_STATUSES = {404, 410}
@@ -36,15 +34,15 @@ def domain_of(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
-def source_progress() -> str:
+def source_progress(read_urls: set[str]) -> str:
     """Tell the agent how many sources it has read so far against the required minimum."""
-    read, remaining = len(READ_URLS), REQUIRED_SOURCES - len(READ_URLS)
+    read, remaining = len(read_urls), REQUIRED_SOURCES - len(read_urls)
     if remaining > 0:
         return (f"[Progress: {read} of {REQUIRED_SOURCES} required sources read successfully. "
                 f"Read at least {remaining} more before writing the report.]")
     return (f"[Progress: {read} of {REQUIRED_SOURCES} required sources read successfully. The requirement is met: "
             f"STOP searching and reading, and write the report now. "
-            f"Cite only these sources: {', '.join(sorted(READ_URLS))}]")
+            f"Cite only these sources: {', '.join(sorted(read_urls))}]")
 
 
 def normalize_url(url: str) -> str:
@@ -54,14 +52,14 @@ def normalize_url(url: str) -> str:
     return f"{domain_of(url)}{parts.path.rstrip('/')}{query}".lower()
 
 
-def source_problem(brief: str) -> str | None:
+def source_problem(brief: str, read_urls: set[str]) -> str | None:
     """Return feedback if the brief's Sources list cites unread or too few read sources, else None."""
     if "## Sources" not in brief:
         return ("Your reply is not a complete brief: it has no '## Sources' section. Reply with only "
                 "the complete brief in the required format, with no preface.")
     sources = brief.split("## Sources", 1)[1]
     cited = {normalize_url(u) for u in re.findall(r"https?://[^\s)\]>]+", sources)}
-    read = {normalize_url(u) for u in READ_URLS}
+    read = {normalize_url(u) for u in read_urls}
     unread, cited_read = sorted(cited - read), cited & read
     problems = []
     if unread:
@@ -90,13 +88,13 @@ class FetchResult:
     reason: str = ""  # only set for "fetch_failed": "no response" or "HTTP <status>"
 
 
-def fetch_source(url: str) -> FetchResult:
+def fetch_source(url: str, read_urls: set[str]) -> FetchResult:
     """Decide whether ``url`` can be read and, if so, fetch and extract its text.
 
-    Updates READ_URLS on success and BLOCKED_DOMAINS when the site refuses the fetch.
+    Updates ``read_urls`` (this run's sources) on success and BLOCKED_DOMAINS when the site refuses the fetch.
     """
     domain = domain_of(url)
-    if url in READ_URLS:
+    if url in read_urls:
         logger.info("\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS} Already read %s.", url)
         return FetchResult("already_read", url, domain)
 
@@ -123,37 +121,38 @@ def fetch_source(url: str) -> FetchResult:
         logger.info("\N{CROSS MARK} Too short (%d chars): %s", len(text), url[:60])
         return FetchResult("too_short", url, domain, text=text)
 
-    READ_URLS.add(url)
+    read_urls.add(url)
     logger.info("\N{WHITE HEAVY CHECK MARK} fetch_and_extract: got %d chars from %s (%d/%d sources read)",
-                len(text), url[:60], len(READ_URLS), REQUIRED_SOURCES)
+                len(text), url[:60], len(read_urls), REQUIRED_SOURCES)
     return FetchResult("ok", url, domain, text=text)
 
 
-def format_fetch_result(result: FetchResult) -> str:
+def format_fetch_result(result: FetchResult, read_urls: set[str]) -> str:
     """Build the message the agent sees for a fetch result."""
     url, domain = result.url, result.domain
     match result.outcome:
         case "already_read":
-            return f"You already read {url}. Choose a different source.\n{source_progress()}"
+            return f"You already read {url}. Choose a different source.\n{source_progress(read_urls)}"
         case "blocked_domain":
             return (f"Skipped {url}: {domain} blocks fetching. Choose a source from a different site.\n"
-                    f"{source_progress()}")
+                    f"{source_progress(read_urls)}")
         case "fetch_failed":
             return (f"Could not fetch {url} ({result.reason}). {domain} blocks fetching, so do not try other "
-                    f"pages on this site. Choose a source from a different site.\n{source_progress()}")
+                    f"pages on this site. Choose a source from a different site.\n{source_progress(read_urls)}")
         case "no_text":
-            return f"Could not fetch and extract text from {url}. Try a different source.\n{source_progress()}"
+            return f"Could not fetch and extract text from {url}. Try a different source.\n{source_progress(read_urls)}"
         case "too_short":
             return (f"{url} is too short ({len(result.text)} chars) to count as a source. "
-                    f"Choose a longer, more substantive article.\n{source_progress()}")
+                    f"Choose a longer, more substantive article.\n{source_progress(read_urls)}")
         case _:
-            return f"{source_progress()}\n\n{result.text}"
+            return f"{source_progress(read_urls)}\n\n{result.text}"
 
 
 @function_tool
-def fetch_and_extract(url: str):
+def fetch_and_extract(ctx: RunContextWrapper[ResearchState], url: str):
     """Fetch the content of a URL and extract its text using Trafilatura.
 
     Domains that refuse a fetch are added to BLOCKED_DOMAINS and skipped for the rest of the run.
     """
-    return format_fetch_result(fetch_source(url))
+    read_urls = ctx.context.read_urls
+    return format_fetch_result(fetch_source(url, read_urls), read_urls)
