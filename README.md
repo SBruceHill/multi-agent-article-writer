@@ -84,7 +84,9 @@ Each research call gets its own `ResearchState` (the set of sources it has read)
 | Briefs that ended with a progress note instead of a report (no Sources section, 139 to 350 words) | 3 of 10 |
 | Judge sanity check by hand: a brief with one source, and an empty brief | both `TRUE` |
 
-**Read the 0% with care.** The judge accepts a source that is only named, so it scored the 3 unfinished briefs `FALSE` because they list source names ("World Nuclear Association", "Desjardins Online Brokerage"). Those 3 are not research briefs, which means the research agent sometimes announces the next step and stops. The judge does not catch this today. A code check on the brief itself (a `## Sources` section with the required number of URLs) would, and `source_problem` in `tools/fetch.py` is written for that but is not wired in yet. TODO (Bruce): decide whether to add that check and rerun.
+**Read the 0% with care.** The judge accepts a source that is only named, so it scored the 3 unfinished briefs `FALSE` because they list source names ("World Nuclear Association", "Desjardins Online Brokerage"). Those 3 are not research briefs, which means the research agent sometimes announces the next step and stops. The judge does not catch this.
+
+**Source check (code).** The runner now also applies `source_problem` from `tools/fetch.py` to each brief: it must have a `## Sources` section that cites at least the required number of sources the agent actually read with `fetch_and_extract`. The result is in the `check_failure` column (`TRUE` means failed), with the feedback text in `check_detail`, and its own failure rate is printed next to the judge's. TODO (Bruce): rerun the evals and add the source check results to the table above.
 
 An earlier run of the same command had 4 of 10 topics fail with `Event loop is closed`, because the runner used one event loop per thread. That is fixed, and the table above is from the fixed runner.
 
