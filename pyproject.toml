@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "multi-agent-article-writer"
 version = "0.1.0"
-description = "Orchestrator-led multi-agent article writer with handoffs, guardrails, and evals"
+description = "Orchestrator-led multi-agent article writer with handoffs and evals"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -13,10 +17,20 @@ dependencies = [
     "trafilatura",
     "pydantic",
     "python-dotenv",
+    "pandas",
 ]
 
 [project.optional-dependencies]
 dev = ["ruff", "pytest"]
+
+[project.scripts]
+article-writer = "article_writer.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+article_writer = ["prompts/*.md"]
 
 [tool.ruff]
 line-length = 100

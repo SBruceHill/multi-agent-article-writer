@@ -26,3 +26,6 @@ images/
 Thumbs.db
 desktop.ini
 .vscode/
+
+# Generated articles, images, and eval results
+output/
