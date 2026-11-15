@@ -69,7 +69,24 @@ flowchart LR
 Each research call gets its own `ResearchState` (the set of sources it has read), passed to the tools as the SDK run context, so the two briefs are independent. The set of domains that refuse fetches is shared by the whole process on purpose.
 
 ### Evals
-EVALS_PLACEHOLDER
+**What is measured.** Whether a research brief fails the "insufficient source breadth" test: fewer than 3 distinct, identifiable sources. A separate judge model (`gpt-5-mini`) reads only the brief and returns `TRUE` (failed) or `FALSE`. The prompt is in `evals/judge.py`.
+
+**How.** `python -m article_writer.evals.run_evals` runs the research agent on the 10 topics in `evals/topics.py` (5 at a time on one event loop), judges each brief, writes `output/evals/<timestamp>.csv`, and prints the failure rate.
+
+**Results** (one run, 2026-11-15, Brave search, `gpt-4.1-mini` research agent):
+
+| Check | Result |
+|---|---|
+| Topics scored (no errors) | 10 of 10 |
+| Judge label `FALSE` (sufficient breadth) / `TRUE` | 10 / 0 |
+| Failure rate reported by the runner | 0% |
+| Briefs with a Sources section listing 4 URLs (counted by hand from the CSV) | 7 of 10 |
+| Briefs that ended with a progress note instead of a report (no Sources section, 139 to 350 words) | 3 of 10 |
+| Judge sanity check by hand: a brief with one source, and an empty brief | both `TRUE` |
+
+**Read the 0% with care.** The judge accepts a source that is only named, so it scored the 3 unfinished briefs `FALSE` because they list source names ("World Nuclear Association", "Desjardins Online Brokerage"). Those 3 are not research briefs, which means the research agent sometimes announces the next step and stops. The judge does not catch this today. A code check on the brief itself (a `## Sources` section with the required number of URLs) would, and `source_problem` in `tools/fetch.py` is written for that but is not wired in yet. TODO (Bruce): decide whether to add that check and rerun.
+
+An earlier run of the same command had 4 of 10 topics fail with `Event loop is closed`, because the runner used one event loop per thread. That is fixed, and the table above is from the fixed runner.
 
 ### Trade-offs and design decisions
 | Decision | Alternatives considered | Why |
