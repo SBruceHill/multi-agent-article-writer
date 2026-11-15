@@ -1,6 +1,6 @@
 # Working in this repo
 
-Portfolio project: a multi-agent system (OpenAI Agents SDK) where an orchestrator coordinates a research agent, an image agent, and two writer agents chosen by handoff, with Pydantic-typed handoffs, guardrails, traces, and LLM-judge evals.
+Portfolio project: a multi-agent system (OpenAI Agents SDK) where an orchestrator coordinates a research agent, an image agent, and two writer agents chosen by handoff, with Pydantic-typed handoffs, traces, and LLM-judge evals.
 
 This repo is private until Bruce decides to publish it. Do not push, change visibility, or create remotes unless asked.
 

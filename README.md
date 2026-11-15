@@ -8,7 +8,7 @@ An orchestrator agent researches a topic, picks the right writer for it, and pro
 TODO: why a single prompt produces thin, poorly sourced articles, and why one writing style does not fit every topic.
 
 ## The solution
-TODO: research agent with web search and page extraction, image agent, journalist and storyteller writer agents selected by a typed handoff, guardrails, and LLM-judge evals on source breadth.
+TODO: research agent with web search and page extraction, image agent, journalist and storyteller writer agents selected by a typed handoff, and LLM-judge evals on source breadth.
 
 ## In action
 TODO: screenshots or a short GIF, plus the demo link.
@@ -67,7 +67,7 @@ TODO: who owns what, integrations, data access, pilot plan, where a human stays 
 - TODO
 
 **Proposed**
-- TODO
+- Input and output guardrails
 
 ## About
 Built by S. Bruce Hill. Product brief: [docs/product-brief.md](docs/product-brief.md).
