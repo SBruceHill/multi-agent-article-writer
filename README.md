@@ -47,7 +47,7 @@ Agent tools (what the agents call):
 | `search_web` | `query` | JSON list of up to 10 results (`title`, `href`, `body`). Sites that blocked a fetch earlier are marked `fetchable: false`. |
 | `fetch_and_extract` | `url` | Progress line plus the page text, or a message saying why the page does not count. |
 | `generate_image` | `prompt` | The saved image path, or an error message. |
-| `research_agent` | `input` (topic) | A Markdown brief with a numbered Sources list. |
+| `research_agent` | `input` (topic) | A Markdown brief with a numbered Sources list, or a `Research failed after N attempts` message if the brief never met the source requirement. |
 | `image_generator_agent` | topic and summary | The image path. |
 
 ### High-level design
@@ -73,20 +73,22 @@ Each research call gets its own `ResearchState` (the set of sources it has read)
 
 **How.** `python -m article_writer.evals.run_evals` runs the research agent on the 10 topics in `evals/topics.py` (5 at a time on one event loop), judges each brief, writes `output/evals/<timestamp>.csv`, and prints the failure rate.
 
-**Results** (one run, 2026-11-15, Brave search, `gpt-4.1-mini` research agent):
+**Source check (code).** Each brief is also run through `source_problem` in `tools/fetch.py`: it must have a `## Sources` section that cites at least the required number of sources the agent actually read with `fetch_and_extract`, and nothing it did not read. Results go in the `check_failure` column (`TRUE` means failed) with the feedback in `check_detail`. The research step retries a brief that fails this check (see Trade-offs), so `check_failure` describes the final brief, `first_attempt_failure` the first one, and `attempts` counts the tries.
+
+**Results** (one run of 10 topics, 2026-11-15, Brave search, `gpt-4.1-mini` research agent, up to 2 retries):
 
 | Check | Result |
 |---|---|
 | Topics scored (no errors) | 10 of 10 |
-| Judge label `FALSE` (sufficient breadth) / `TRUE` | 10 / 0 |
-| Failure rate reported by the runner | 0% |
-| Briefs with a Sources section listing 4 URLs (counted by hand from the CSV) | 7 of 10 |
-| Briefs that ended with a progress note instead of a report (no Sources section, 139 to 350 words) | 3 of 10 |
-| Judge sanity check by hand: a brief with one source, and an empty brief | both `TRUE` |
+| LLM judge failure rate (`TRUE` means insufficient breadth) | 0% (10 `FALSE`) |
+| Source check failure rate, first brief | 50% (5 of 10) |
+| Source check failure rate, after retries | 0% (0 of 10) |
+| Attempts per topic (1 / 2 / 3) | 5 / 2 / 3 |
+| Final brief length, words (min to max) | 595 to 900 |
 
-**Read the 0% with care.** The judge accepts a source that is only named, so it scored the 3 unfinished briefs `FALSE` because they list source names ("World Nuclear Association", "Desjardins Online Brokerage"). Those 3 are not research briefs, which means the research agent sometimes announces the next step and stops. The judge does not catch this.
+**Read the judge's 0% with care.** In an earlier run, before the retry existed, the research agent ended 3 of 10 briefs with a progress note ("Now, I will proceed to synthesize...") instead of a report. The judge scored all 3 `FALSE` because they named sources ("World Nuclear Association"), so it does not catch unfinished briefs. The source check does, which is why it was added. By hand, the judge returned `TRUE` for a one source brief and for an empty brief.
 
-**Source check (code).** The runner now also applies `source_problem` from `tools/fetch.py` to each brief: it must have a `## Sources` section that cites at least the required number of sources the agent actually read with `fetch_and_extract`. The result is in the `check_failure` column (`TRUE` means failed), with the feedback text in `check_detail`, and its own failure rate is printed next to the judge's. TODO (Bruce): rerun the evals and add the source check results to the table above.
+**Limits of these numbers.** One run of 10 topics is a small sample, so the 50% first attempt failure rate is a rough figure and will vary between runs. The CSV keeps the feedback only for the final brief, so it does not show why each first brief failed. The retries were allowed up to 2 rewrites, and 3 topics needed both. TODO (Bruce): repeat the run a few times before quoting a rate, and decide whether a prompt change or a different research model should lower the first attempt failure rate.
 
 An earlier run of the same command had 4 of 10 topics fail with `Event loop is closed`, because the runner used one event loop per thread. That is fixed, and the table above is from the fixed runner.
 
@@ -99,6 +101,7 @@ An earlier run of the same command had 4 of 10 topics fail with `Event loop is c
 | Two writer agents chosen by a typed handoff | One writer with a style parameter | Each style keeps its own rules in one prompt, and the handoff records which writer was chosen and why. |
 | Tools are thin wrappers over plain helper functions | Logic inside the tool functions | The helpers can be unit tested without an agent or network (fetch decisions, search backoff, prompt rendering). |
 | Prompts stored as Markdown files with `{PLACEHOLDERS}` | Prompts as Python strings | The prompt text can be read and diffed on its own. Limits like the required source count come from config. |
+| Retry a brief that fails the source check (up to 2 rewrites), then return an error message | Reword the prompt only; force a tool call on every turn; a reasoning model for research | The research agent sometimes ended a turn with a progress note instead of the report, and the SDK treats a turn with no tool call as the final answer. The retry reuses the check's own feedback text, keeps the prompt unchanged, and never hands a stub to the orchestrator. In the eval run above, 5 of 10 first briefs failed the check and 0 of 10 failed after retries. |
 | The CLI exits with code 2 when the orchestrator ends without a handoff | Save whatever the final output is | In one smoke run the orchestrator ended its turn with a sentence and no handoff, which would otherwise be saved as a short stub article. |
 | Orchestrator model defaults to `gpt-4.1-mini`, overridable with `ARTICLE_WRITER_ORCHESTRATOR_MODEL` | `gpt-5-mini` for the orchestrator | In two batches of 3 runs per model on one topic, `gpt-5-mini` reached a writer 6 of 6 times and `gpt-4.1-mini` 5 of 6 (the miss was a search outage, not the orchestrator). That sample is too small to separate them. |
 
