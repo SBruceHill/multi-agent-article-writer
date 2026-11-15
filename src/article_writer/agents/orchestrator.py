@@ -8,7 +8,7 @@ from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 from article_writer.agents.image import image_agent_as_tool
 from article_writer.agents.research import research_agent_as_tool
 from article_writer.agents.writers import journalist_agent, storyteller_agent
-from article_writer.config import MODEL
+from article_writer.config import ORCHESTRATOR_MODEL
 from article_writer.models import WriterSelectionInfo
 from article_writer.prompts import render
 
@@ -23,7 +23,7 @@ async def on_handoff(_ctx: RunContextWrapper, decision: WriterSelectionInfo) -> 
 orchestrator_agent = Agent(
     name="orchestrator_agent w/ handoff and styles",
     instructions=RECOMMENDED_PROMPT_PREFIX + render("orchestrator"),
-    model=MODEL,
+    model=ORCHESTRATOR_MODEL,
     tools=[research_agent_as_tool, image_agent_as_tool],
     handoffs=[
         handoff(agent=journalist_agent, on_handoff=on_handoff, input_type=WriterSelectionInfo),

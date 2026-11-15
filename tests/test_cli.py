@@ -58,3 +58,18 @@ def test_main_fails_fast_without_api_key(monkeypatch, capsys):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     assert cli.main(["topic"]) == 1
     assert "API Key is missing" in capsys.readouterr().err
+
+
+def test_main_exits_2_and_writes_nothing_when_no_handoff(monkeypatch, tmp_path, capsys):
+    async def stalled(topic, max_turns):
+        raise cli.IncompleteRunError("The orchestrator finished without handing off to a writer.")
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr(cli, "write_article", stalled)
+    assert cli.main(["topic", "--out", str(tmp_path)]) == 2
+    assert list(tmp_path.iterdir()) == []
+    assert "without handing off" in capsys.readouterr().err
+
+
+def test_orchestrator_model_defaults_to_model():
+    assert config.ORCHESTRATOR_MODEL == config.MODEL

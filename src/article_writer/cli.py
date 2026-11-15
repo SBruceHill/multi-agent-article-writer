@@ -10,6 +10,10 @@ from pathlib import Path
 from article_writer import config
 
 
+class IncompleteRunError(RuntimeError):
+    """The run ended before a writer produced the article."""
+
+
 def slugify(topic: str, max_length: int = 60) -> str:
     """Turn a topic into a safe file name stem."""
     slug = re.sub(r"[^a-z0-9]+", "_", topic.lower()).strip("_")[:max_length].strip("_")
@@ -49,6 +53,12 @@ async def write_article(topic: str, max_turns: int) -> tuple[str, str]:
 
     with trace("Article Writer w/ styles", group_id="AIEP", metadata={"experimentID": "001"}):
         result = await Runner.run(orchestrator_agent, input=topic, max_turns=max_turns)
+    # The orchestrator can end its turn with text instead of calling tools and handing off.
+    # That leaves a stub, not an article, so fail instead of passing it off as one.
+    if result.last_agent is orchestrator_agent:
+        raise IncompleteRunError(
+            "The orchestrator finished without handing off to a writer. "
+            f"Its last message was: {str(result.final_output)[:200]!r}")
     return str(result.final_output), result.last_agent.name
 
 
@@ -61,7 +71,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
-    article, writer = asyncio.run(write_article(args.topic, args.max_turns))
+    try:
+        article, writer = asyncio.run(write_article(args.topic, args.max_turns))
+    except IncompleteRunError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
 
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{slugify(args.topic)}.md"

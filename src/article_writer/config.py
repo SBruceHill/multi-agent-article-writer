@@ -23,6 +23,7 @@ def _float(name: str, default: float) -> float:
 
 # Models
 MODEL = os.getenv("ARTICLE_WRITER_MODEL", "gpt-4.1-mini")
+ORCHESTRATOR_MODEL = os.getenv("ARTICLE_WRITER_ORCHESTRATOR_MODEL", MODEL)  # defaults to MODEL
 JUDGE_MODEL = os.getenv("ARTICLE_WRITER_JUDGE_MODEL", "gpt-5-mini")
 IMAGE_MODEL = os.getenv("ARTICLE_WRITER_IMAGE_MODEL", "gpt-image-2.5-flare")
 
