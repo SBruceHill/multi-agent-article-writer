@@ -1,0 +1,75 @@
+"""Command line entry point: ``article-writer "topic"``."""
+
+import argparse
+import asyncio
+import logging
+import re
+import sys
+from pathlib import Path
+
+from article_writer import config
+
+
+def slugify(topic: str, max_length: int = 60) -> str:
+    """Turn a topic into a safe file name stem."""
+    slug = re.sub(r"[^a-z0-9]+", "_", topic.lower()).strip("_")[:max_length].strip("_")
+    return slug or "article"
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="article-writer",
+        description="Research a topic, pick a writer, and produce a sourced article.",
+    )
+    parser.add_argument("topic", help="the topic to write about")
+    parser.add_argument("--out", type=Path, default=config.OUTPUT_DIR, metavar="DIR",
+                        help="directory for the article (default: %(default)s)")
+    parser.add_argument("--max-turns", type=int, default=config.DEFAULT_MAX_TURNS,
+                        help="turn limit for the orchestrator run (default: %(default)s)")
+    parser.add_argument("--verbose", action="store_true", help="show progress messages")
+    return parser
+
+
+def setup_logging(verbose: bool) -> None:
+    """Send article_writer log messages to stderr; progress (INFO) only when verbose."""
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("  %(message)s"))
+    package_logger = logging.getLogger("article_writer")
+    package_logger.handlers = [handler]
+    package_logger.setLevel(logging.INFO if verbose else logging.WARNING)
+    package_logger.propagate = False
+
+
+async def write_article(topic: str, max_turns: int) -> tuple[str, str]:
+    """Run the orchestrator on ``topic``. Returns (article markdown, name of the writer used)."""
+    # Imported here so parsing arguments does not build the agents
+    from agents import Runner, trace
+
+    from article_writer.agents.orchestrator import orchestrator_agent
+
+    with trace("Article Writer w/ styles", group_id="AIEP", metadata={"experimentID": "001"}):
+        result = await Runner.run(orchestrator_agent, input=topic, max_turns=max_turns)
+    return str(result.final_output), result.last_agent.name
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    setup_logging(args.verbose)
+    try:
+        config.require_api_key()
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    article, writer = asyncio.run(write_article(args.topic, args.max_turns))
+
+    args.out.mkdir(parents=True, exist_ok=True)
+    path = args.out / f"{slugify(args.topic)}.md"
+    path.write_text(article, encoding="utf-8")
+    print(f"Article: {path}")
+    print(f"Writer: {writer}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
