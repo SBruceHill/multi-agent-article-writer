@@ -42,7 +42,8 @@ BRAVE_MIN_INTERVAL = _float("ARTICLE_WRITER_BRAVE_MIN_INTERVAL", 1.1)  # seconds
 
 # Run limits
 DEFAULT_MAX_TURNS = _int("ARTICLE_WRITER_MAX_TURNS", 30)
-RESEARCH_MAX_TURNS = _int("ARTICLE_WRITER_RESEARCH_MAX_TURNS", 25)
+RESEARCH_MAX_TURNS = _int("ARTICLE_WRITER_RESEARCH_MAX_TURNS", 25)  # per attempt
+RESEARCH_MAX_RETRIES = _int("ARTICLE_WRITER_RESEARCH_MAX_RETRIES", 2)  # rewrites after a bad brief
 
 # Paths (relative paths resolve against the current directory)
 OUTPUT_DIR = Path(os.getenv("ARTICLE_WRITER_OUTPUT_DIR", "output"))

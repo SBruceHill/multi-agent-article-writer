@@ -5,7 +5,9 @@ Researches every topic in TOPICS and checks each brief two ways:
 - a code check (column ``check_failure``): does the brief have a Sources section that cites at
   least the required number of sources the agent actually read? ``check_detail`` holds the
   feedback when it does not.
-For both columns TRUE means failed. Results go to output/evals/<timestamp>.csv, and both
+For both columns TRUE means failed. The research step retries a brief that fails the check, so
+``check_failure`` describes the final brief; ``first_attempt_failure`` is the same check on the
+first brief, and ``attempts`` counts the tries. Results go to output/evals/<timestamp>.csv, and both
 failure rates are printed.
 """
 
@@ -18,28 +20,19 @@ from pathlib import Path
 import pandas as pd
 
 from article_writer import config
+from article_writer.agents.research import ResearchRun, run_research_checked
 from article_writer.cli import setup_logging
 from article_writer.evals.judge import judge
 from article_writer.evals.topics import TOPICS
-from article_writer.tools.fetch import source_problem
 
 logger = logging.getLogger(__name__)
 
 MAX_WORKERS = 5
 
 
-async def run_research(
-    topic: str, max_turns: int = config.RESEARCH_MAX_TURNS
-) -> tuple[str, set[str]]:
-    """Run the research agent on ``topic``. Returns (brief, URLs the agent read successfully)."""
-    from agents import Runner
-
-    from article_writer.agents.research import research_agent
-    from article_writer.models import ResearchState
-
-    state = ResearchState()
-    result = await Runner.run(research_agent, input=topic, context=state, max_turns=max_turns)
-    return str(result.final_output), state.read_urls
+async def run_research(topic: str, max_turns: int = config.RESEARCH_MAX_TURNS) -> ResearchRun:
+    """Research ``topic`` the same way the orchestrator's research tool does."""
+    return await run_research_checked(topic, max_turns=max_turns)
 
 
 async def evaluate(topic: str, limit: asyncio.Semaphore) -> dict:
@@ -47,15 +40,18 @@ async def evaluate(topic: str, limit: asyncio.Semaphore) -> dict:
     async with limit:
         logger.info("[%d/%d] Researching: %s...", TOPICS.index(topic) + 1, len(TOPICS), topic[:60])
         try:
-            brief, read_urls = await run_research(topic)
+            run = await run_research(topic)
             # judge() is a blocking API call, so keep it off the event loop
-            label = await asyncio.to_thread(judge, brief)
-            problem = source_problem(brief, read_urls)
-            return {"topic": topic, "failure": label, "brief": brief,
-                    "check_failure": "TRUE" if problem else "FALSE", "check_detail": problem or ""}
+            label = await asyncio.to_thread(judge, run.brief)
+            return {"topic": topic, "failure": label, "brief": run.brief,
+                    "check_failure": "TRUE" if run.problem else "FALSE",
+                    "check_detail": run.problem or "",
+                    "first_attempt_failure": "TRUE" if run.first_problem else "FALSE",
+                    "attempts": run.attempts}
         except Exception as e:  # noqa: BLE001 (any failure becomes an ERROR row)
             return {"topic": topic, "failure": "ERROR", "brief": repr(e),
-                    "check_failure": "ERROR", "check_detail": ""}
+                    "check_failure": "ERROR", "check_detail": "",
+                    "first_attempt_failure": "ERROR", "attempts": 0}
 
 
 async def evaluate_all(topics: list[str], workers: int = MAX_WORKERS) -> list[dict]:
@@ -95,7 +91,9 @@ def main() -> int:
     print("LLM judge labels:\n" + df["failure"].value_counts().to_string(), "\n")
     print("Source check labels:\n" + df["check_failure"].value_counts().to_string(), "\n")
     print(f"Failure rate, LLM judge (scored runs): {_percent(failure_rate(df))}")
-    print(f"Failure rate, source check (scored runs): {_percent(failure_rate(df, 'check_failure'))}")
+    print(f"Failure rate, source check, first attempt: "
+          f"{_percent(failure_rate(df, 'first_attempt_failure'))}")
+    print(f"Failure rate, source check, after retries: {_percent(failure_rate(df, 'check_failure'))}")
     print(f"Results: {path}")
     return 0
 
