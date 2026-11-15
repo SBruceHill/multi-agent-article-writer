@@ -73,3 +73,19 @@ def test_main_exits_2_and_writes_nothing_when_no_handoff(monkeypatch, tmp_path, 
 
 def test_orchestrator_model_defaults_to_model():
     assert config.ORCHESTRATOR_MODEL == config.MODEL
+
+
+def test_relink_images_makes_paths_relative_to_the_article(monkeypatch, tmp_path):
+    (tmp_path / "output" / "images").mkdir(parents=True)
+    (tmp_path / "output" / "images" / "hero_1.jpg").write_bytes(b"x")
+    monkeypatch.chdir(tmp_path)
+    article = "![hero image](output/images/hero_1.jpg)\n\nText"
+    assert cli.relink_images(article, Path("output")) == "![hero image](images/hero_1.jpg)\n\nText"
+    assert cli.relink_images(article, Path("elsewhere")) == (
+        "![hero image](../output/images/hero_1.jpg)\n\nText")
+
+
+def test_relink_images_leaves_missing_files_and_urls_alone(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    article = "![a](output/images/gone.jpg) ![b](https://x.com/i.jpg)"
+    assert cli.relink_images(article, Path("output")) == article

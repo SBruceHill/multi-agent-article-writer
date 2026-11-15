@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import logging
+import os
 import re
 import sys
 from pathlib import Path
@@ -18,6 +19,26 @@ def slugify(topic: str, max_length: int = 60) -> str:
     """Turn a topic into a safe file name stem."""
     slug = re.sub(r"[^a-z0-9]+", "_", topic.lower()).strip("_")[:max_length].strip("_")
     return slug or "article"
+
+
+_IMAGE_LINK = re.compile(r"(!\[[^\]]*\]\()([^)\s]+)(\))")
+
+
+def relink_images(article: str, out_dir: Path) -> str:
+    """Rewrite image links so they resolve from the folder the article is saved in.
+
+    The image tool returns paths relative to the current directory (e.g. output/images/x.jpg),
+    which break once the article sits in another folder. Links to files that do not exist
+    (and web URLs) are left alone.
+    """
+    def fix(match: re.Match) -> str:
+        target = match.group(2)
+        if "://" in target or not Path(target).is_file():
+            return match.group(0)
+        relative = Path(os.path.relpath(target, out_dir)).as_posix()
+        return f"{match.group(1)}{relative}{match.group(3)}"
+
+    return _IMAGE_LINK.sub(fix, article)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -79,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args.out.mkdir(parents=True, exist_ok=True)
     path = args.out / f"{slugify(args.topic)}.md"
-    path.write_text(article, encoding="utf-8")
+    path.write_text(relink_images(article, args.out), encoding="utf-8")
     print(f"Article: {path}")
     print(f"Writer: {writer}")
     return 0
