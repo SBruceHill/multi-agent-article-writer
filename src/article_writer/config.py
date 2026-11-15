@@ -35,6 +35,11 @@ MAX_PAGES = _int("ARTICLE_WRITER_MAX_PAGES", 3)
 MIN_SEARCH_INTERVAL = _float("ARTICLE_WRITER_MIN_SEARCH_INTERVAL", 2.5)  # seconds between searches
 FETCH_TIMEOUT = _int("ARTICLE_WRITER_FETCH_TIMEOUT", 10)  # seconds
 
+# Search provider: "auto" uses Brave when BRAVE_API_KEY is set, else DuckDuckGo (ddgs).
+# "brave" and "ddgs" force one. A failed Brave request falls back to ddgs.
+SEARCH_PROVIDER = os.getenv("ARTICLE_WRITER_SEARCH_PROVIDER", "auto")
+BRAVE_MIN_INTERVAL = _float("ARTICLE_WRITER_BRAVE_MIN_INTERVAL", 1.1)  # seconds between requests
+
 # Run limits
 DEFAULT_MAX_TURNS = _int("ARTICLE_WRITER_MAX_TURNS", 30)
 RESEARCH_MAX_TURNS = _int("ARTICLE_WRITER_RESEARCH_MAX_TURNS", 25)

@@ -8,6 +8,12 @@ from article_writer.tools import fetch
 
 
 @pytest.fixture(autouse=True)
+def no_live_search(monkeypatch):
+    """Keep a real BRAVE_API_KEY from .env out of tests."""
+    monkeypatch.delenv("BRAVE_API_KEY", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def clean_run_state():
     """Start every test with no sources read and no blocked domains."""
     fetch.READ_URLS.clear()

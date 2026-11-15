@@ -94,3 +94,64 @@ def test_throttled_text_spaces_requests(monkeypatch):
     monkeypatch.setattr(search, "ddgs", type("D", (), {"text": lambda self, *a, **k: ["r"]})())
     assert search.throttled_text("q", 1) == ["r"]
     assert sleeps == [pytest.approx(search.MIN_SEARCH_INTERVAL - 1.0)]
+
+
+class FakeResponse:
+    def __init__(self, status_code=200, payload=None):
+        self.status_code = status_code
+        self._payload = payload if payload is not None else {}
+
+    def json(self):
+        return self._payload
+
+
+@pytest.fixture
+def brave(monkeypatch):
+    """Set a fake key and capture requests.get calls; returns (calls, set_response)."""
+    monkeypatch.setenv("BRAVE_API_KEY", "test-key")
+    monkeypatch.setattr(search.time, "sleep", lambda s: None)
+    state = {"calls": [], "response": FakeResponse()}
+
+    def fake_get(url, **kwargs):
+        state["calls"].append((url, kwargs))
+        r = state["response"]
+        if isinstance(r, Exception):
+            raise r
+        return r
+
+    monkeypatch.setattr(search.requests, "get", fake_get)
+    return state
+
+
+def test_brave_results_are_mapped_to_ddgs_shape(brave):
+    brave["response"] = FakeResponse(payload={"web": {"results": [
+        {"title": "T", "url": "https://a.com/1", "description": "a <strong>bold</strong> claim"}]}})
+    assert search.brave_text("q", 2) == [{"title": "T", "href": "https://a.com/1", "body": "a bold claim"}]
+    url, kwargs = brave["calls"][0]
+    assert url == search.BRAVE_URL
+    assert kwargs["headers"]["X-Subscription-Token"] == "test-key"
+    assert kwargs["params"] == {"q": "q", "count": NUM_RESULTS, "offset": 1}
+
+
+def test_brave_non_200_raises(brave):
+    brave["response"] = FakeResponse(status_code=429)
+    with pytest.raises(search.BraveError, match="HTTP 429"):
+        search.brave_text("q", 1)
+
+
+def test_throttled_text_uses_brave_when_key_is_set(brave, monkeypatch):
+    brave["response"] = FakeResponse(payload={"web": {"results": [{"title": "T", "url": "https://a.com"}]}})
+    monkeypatch.setattr(search, "ddgs", None)  # would crash if ddgs were used
+    assert search.throttled_text("q", 1)[0]["href"] == "https://a.com"
+
+
+def test_throttled_text_falls_back_to_ddgs_when_brave_fails(brave, monkeypatch):
+    brave["response"] = search.requests.ConnectionError("down")
+    monkeypatch.setattr(search, "ddgs", type("D", (), {"text": lambda self, *a, **k: ["from-ddgs"]})())
+    assert search.throttled_text("q", 1) == ["from-ddgs"]
+
+
+def test_throttled_text_skips_brave_without_a_key(monkeypatch):
+    monkeypatch.setattr(search.time, "sleep", lambda s: None)
+    monkeypatch.setattr(search, "ddgs", type("D", (), {"text": lambda self, *a, **k: ["from-ddgs"]})())
+    assert search.throttled_text("q", 1) == ["from-ddgs"]
