@@ -31,7 +31,6 @@ The OpenAI trace for a run of the same topic, with the nested spans collapsed: t
 ![Trace overview](docs/examples/trace-overview.png)
 
 The sample is one run, not a measure of quality. It is unedited and has not been fact checked: its source list gives titles without URLs, and its quotes and named people have not been compared with the pages the research agent read. v1 has no step that does this (see Roadmap, v1.2).
-<!-- TODO: add a demo link. -->
 
 ## Architecture
 
