@@ -2,10 +2,10 @@
 
 An orchestrator agent researches a topic, picks the right writer for it, and produces a sourced article with a generated hero image.
 
-> Status: notebook prototype being packaged into a command line tool.
+> Status: working command line tool with offline tests and an eval runner. Guardrails and an HTTP API are not built yet (see Roadmap).
 
 ## The problem
-TODO (Bruce): why a single prompt produces thin, poorly sourced articles, and why one writing style does not fit every topic.
+When I ask one model for an article in a single prompt, it has to research, check sources, and write all in one pass, so the result reads smoothly but says little: general claims, few specific facts, and citations I can't trace to a page the model actually read. One voice also doesn't fit every topic, because a contested policy question needs an argument while a story about people needs scenes and characters. [MY EXAMPLE]
 
 ## The solution
 An orchestrator agent coordinates specialists instead of writing anything itself:
@@ -15,7 +15,13 @@ An orchestrator agent coordinates specialists instead of writing anything itself
 - LLM-judge evals score whether a research brief cites enough distinct sources.
 
 ## In action
-TODO (Bruce): screenshots or a short GIF, plus the demo link. `assets/hero-example.jpg` is an example hero image from the scaffold.
+TODO (Bruce): add these files under `docs/examples/`, then replace each placeholder with the real link or excerpt.
+
+- **Sample article:** `docs/examples/sample-article.md` (TODO: one full article from a real run, unedited)
+- **Hero image:** `docs/examples/hero.jpg` (TODO: the image generated for that article, shown here with `![Hero image](docs/examples/hero.jpg)`)
+- **Run log:** `docs/examples/verbose-log.txt` (TODO: a `--verbose` excerpt from the same run showing searches, fetches, the source check, and the writer chosen)
+- **Trace:** `docs/examples/trace.png` (TODO: a screenshot of the run in the OpenAI Traces dashboard, showing the two research calls, the image call, and the handoff)
+- **Demo link:** TODO
 
 ## Architecture
 
@@ -33,7 +39,7 @@ TODO (Bruce): screenshots or a short GIF, plus the demo link. `assets/hero-examp
 - Searches are spaced and retried so parallel tool calls do not trigger rate limits.
 - Secrets live in `.env` only. Models, limits, and paths can be overridden with `ARTICLE_WRITER_*` environment variables (see `src/article_writer/config.py`).
 - The unit tests make no network or API calls.
-- TODO (Bruce): measured latency and cost per article. Neither is recorded in this repo yet.
+- **TODO (Bruce): latency and cost per article.** Not measured yet, so no target or figure is given here. To fill in after several timed full runs with token counts per agent.
 
 ### API and interfaces
 | Entry point | Input | Output |
@@ -120,8 +126,8 @@ An earlier run of the same command had 4 of 10 topics fail with `Event loop is c
 
 ## Quick start
 ```bash
-git clone TODO
-cd TODO
+git clone https://github.com/SBruceHill/multi-agent-article-writer.git
+cd multi-agent-article-writer
 python -m venv .venv
 # Windows: .venv\Scripts\activate   macOS/Linux: source .venv/bin/activate
 pip install -e ".[dev]"
@@ -155,21 +161,37 @@ src/article_writer/
 tests/               Offline unit tests (no network or API calls)
 notebooks/           The original prototype notebook (kept unchanged)
 docs/                Product brief (draft)
+  examples/          Sample article, hero image, run log, trace screenshot (TODO)
 ```
 
 ## Deploying this at a customer
-TODO (Bruce): owners, integrations, data access, pilot plan, and where a human stays in the loop.
+Status: Draft. Three options for Bruce to choose from; none has been tried with a customer. Each assumes the v1.1 HTTP API (see Roadmap), since today the system runs only from the command line.
+
+| | A. Content team drafting tool | B. Research briefs for analysts | C. Newsroom first drafts |
+|---|---|---|---|
+| **Owners** | Content lead (business), one platform engineer (runs it) | Research lead (business), internal tools team | Managing editor (business), newsroom developer |
+| **Integrations** | CMS draft (for example WordPress or Contentful), Slack notice when a draft is ready | Only the research agent, writing briefs to the team's wiki or doc store | CMS draft queue; the editor's style guide added to the writer prompts |
+| **Data access** | Public web only; no customer data | Public web, with an allowlist or blocklist of domains | Public web; the paper's own archive would need retrieval, which is not built |
+| **Pilot shape** | 4 weeks, about 20 topics, compare editing time against articles written without it | 2 weeks, one team, analysts rate each brief's sources | 4 weeks on features only, no breaking news |
+| **Human in the loop** | An editor approves every draft and checks each citation before publishing; nothing publishes automatically | The analyst decides which sources to keep | An editor fact checks and signs off; the system never publishes |
 
 ## Roadmap
 **Built**
 - Orchestrator with research and image tools and a typed handoff to two writers
 - Research agent with web search (Brave, ddgs fallback), page extraction, and per call source counting
 - Command line tool that saves the article and reports the writer
-- LLM-judge eval for source breadth over 10 topics
+- Source check in code on every research brief, with up to 2 retries using the check's feedback
+- LLM-judge eval for source breadth over 10 topics, reported alongside the source check
 - Offline unit tests and CI (ruff and pytest)
 
 **Proposed**
-- Input and output guardrails
+
+*Next up (v1.1)*
+- Input and output guardrails (`guardrails.py`, to be written by hand)
+- FastAPI wrapper around the orchestrator. In a long running server, one timeout currently blocks a domain until restart, so each `BLOCKED_DOMAINS` entry gets a time limit (for example one hour), tested with a fake clock.
+- Architecture section for the v1.1 service, in system design order: requirements and API, high-level design with a diagram, then evals and trade-offs
+
+*Later*
 - Source judging: two research designs to compare. The current design (A) runs the research agent twice and the orchestrator keeps the better brief. It judges the finished text, not the sources behind it, and the second call repeats the first instead of filling gaps. The alternative (B) moves evaluation into the research step: the agent reads more than the required number of candidate sources, an evaluator keeps the best ones (for example by credibility, relevance, and variety of domains), and one brief is written from only those. The hypothesis is that B produces better sourced articles at similar or lower cost, because it spends effort on the sources and writes one brief instead of two. This is untested. A fair comparison runs the same topics through both designs and scores the briefs with the source breadth judge plus a second judge for article quality, since breadth alone only shows whether a design reaches enough sources. The evaluator would need explicit criteria and a typed output (the chosen URLs and a reason for each).
 
 ## About
