@@ -20,7 +20,7 @@ An orchestrator agent splits the job into steps, with the sourcing rule enforced
 ## In action
 One article from a real run, with the hero image the image agent generated for it:
 
-- [Sample article](docs/examples/the_people_who_keep_small_town_newspapers_alive.md), a narrative piece on small-town newspapers, saved as the CLI wrote it
+- [Sample article](docs/examples/the_people_who_keep_small_town_newspapers_alive.md), written from the topic "The people who keep small-town newspapers alive" and saved as the CLI wrote it
 - [Hero image](docs/examples/images/hero_b2ff890c.jpg)
 
 ![Hero image](docs/examples/images/hero_b2ff890c.jpg)

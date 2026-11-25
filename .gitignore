@@ -18,6 +18,8 @@ ai_env/
 chroma*/
 data/
 images/
+!docs/examples/images/
+*.sqlite
 *.sqlite3
 *.db
 
