@@ -18,14 +18,15 @@ An orchestrator agent splits the job into steps, with the sourcing rule enforced
 **Why not a general chat assistant?** ChatGPT, Claude, Gemini, and Grok can search the web and write a cited article. This project has not been compared with them on article quality, so it makes no claim there. What it adds is control: the source rule is enforced and unit tested in code, each writing style is a fixed prompt chosen per topic with a recorded reason, each run leaves a trace of what was read, and a change to a model or prompt can be measured with the same evals. It runs from the command line, so a team can script it, inspect it, and adjust it.
 
 ## In action
-Examples from one real run will be added under `docs/examples/`.
-<!-- TODO: add these files, then replace this section with links and excerpts:
-- docs/examples/sample-article.md: one full article from a real run, unedited
-- docs/examples/hero.jpg: the image generated for that article, embedded with ![Hero image](docs/examples/hero.jpg)
-- docs/examples/verbose-log.txt: a --verbose excerpt from the same run (searches, fetches, the source check, the writer chosen)
-- docs/examples/trace.png: the run in the OpenAI Traces dashboard (two research calls, the image call, the handoff)
-- Demo link
--->
+One article from a real run, with the hero image the image agent generated for it:
+
+- [Sample article](docs/examples/the_people_who_keep_small_town_newspapers_alive.md), a narrative piece on small-town newspapers, saved as the CLI wrote it
+- [Hero image](docs/examples/images/hero_b2ff890c.jpg)
+
+![Hero image](docs/examples/images/hero_b2ff890c.jpg)
+
+The sample is one run, not a measure of quality. Its source list gives titles without URLs, and the quotes in it have not been checked against the pages the research agent read.
+<!-- TODO: add docs/examples/verbose-log.txt (a --verbose excerpt: searches, fetches, the source check, the writer chosen), docs/examples/trace.png (the run in the OpenAI Traces dashboard), and a demo link. -->
 
 ## Architecture
 
@@ -170,7 +171,7 @@ src/article_writer/
 tests/               Offline unit tests (no network or API calls)
 notebooks/           The original prototype notebook (kept unchanged)
 docs/                Product brief (draft)
-  examples/          Sample article, hero image, run log, trace screenshot (TODO)
+  examples/          Sample article and its hero image (run log and trace screenshot still to add)
 ```
 
 ## Deploying this at a customer
