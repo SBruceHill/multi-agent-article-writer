@@ -25,7 +25,7 @@ One article from a real run, with the hero image the image agent generated for i
 
 ![Hero image](docs/examples/images/hero_b2ff890c.jpg)
 
-The sample is one run, not a measure of quality. Its source list gives titles without URLs, and the quotes in it have not been checked against the pages the research agent read.
+The sample is one run, not a measure of quality. It is unedited and has not been fact checked: its source list gives titles without URLs, and its quotes and named people have not been compared with the pages the research agent read. v1 has no step that does this (see Roadmap, v1.2).
 <!-- TODO: add docs/examples/verbose-log.txt (a --verbose excerpt: searches, fetches, the source check, the writer chosen), docs/examples/trace.png (the run in the OpenAI Traces dashboard), and a demo link. -->
 
 ## Architecture
@@ -44,6 +44,7 @@ The sample is one run, not a measure of quality. Its source list gives titles wi
 - Searches are spaced and retried so parallel tool calls do not trigger rate limits.
 - Secrets live in `.env` only. Models, limits, and paths can be overridden with `ARTICLE_WRITER_*` environment variables (see `src/article_writer/config.py`).
 - The unit tests make no network or API calls.
+- Known gap: nothing checks the finished article. The source check covers the research brief only, and the orchestrator does not review what the writer produces, so a quote, name, or figure in the article is not compared with the pages the research agent read. An editor must fact check every article before publishing. A fact checking step is planned for v1.2 (see Roadmap).
 - Latency and cost per article: not measured yet, so no target or figure is given here.
   <!-- TODO: fill in after several timed full runs with token counts per agent. -->
 
@@ -116,6 +117,7 @@ An earlier run of the same command had 4 of 10 topics fail with `Event loop is c
 | Tools are thin wrappers over plain helper functions | Logic inside the tool functions | The helpers can be unit tested without an agent or network (fetch decisions, search backoff, prompt rendering). |
 | Prompts stored as Markdown files with `{PLACEHOLDERS}` | Prompts as Python strings | The prompt text can be read and diffed on its own. Limits like the required source count come from config. |
 | Retry a brief that fails the source check (up to 2 rewrites), then return an error message | Reword the prompt only; force a tool call on every turn; a reasoning model for research | The research agent sometimes ended a turn with a progress note instead of the report, and the SDK treats a turn with no tool call as the final answer. The retry reuses the check's own feedback text, keeps the prompt unchanged, and never hands a stub to the orchestrator. In the eval run above, 5 of 10 first briefs failed the check and 0 of 10 failed after retries. |
+| No review step after the writer in v1 | A fact checker agent that verifies quotes, names, and figures against the sources | The source check validates the research brief, but the writer can add scenes, quotes, or details that are not in it, and no step catches that. Adding a checker needs a typed list of claims and the pages each came from, and a way to measure it, so it is planned for v1.2 instead of being added untested. Until then a human editor is the only check. |
 | The CLI exits with code 2 when the orchestrator ends without a handoff | Save whatever the final output is | In one smoke run the orchestrator ended its turn with a sentence and no handoff, which would otherwise be saved as a short stub article. |
 | Orchestrator model defaults to `gpt-4.1-mini`, overridable with `ARTICLE_WRITER_ORCHESTRATOR_MODEL` | `gpt-5-mini` for the orchestrator | In two batches of 3 runs per model on one topic, `gpt-5-mini` reached a writer 6 of 6 times and `gpt-4.1-mini` 5 of 6 (the miss was a search outage, not the orchestrator). That sample is too small to separate them. |
 
@@ -200,6 +202,10 @@ Status: Draft. Three candidate deployment shapes; none has been tried with a cus
 - Input and output guardrails (`guardrails.py`, to be written by hand)
 - FastAPI wrapper around the orchestrator. In a long running server, one timeout currently blocks a domain until restart, so each `BLOCKED_DOMAINS` entry gets a time limit (for example one hour), tested with a fake clock.
 - Architecture section for the v1.1 service, in system design order: requirements and API, high-level design with a diagram, then evals and trade-offs
+
+*Phase 2 (v1.2): editor and fact checker*
+- An editor agent that runs after the writer and checks the finished article against the research brief and the pages that were read. It extracts each quote, named person, and figure, finds the passage that supports it, and returns a typed report (claim, supporting passage or none, verdict). Unsupported claims are sent back to the writer for a rewrite, up to a fixed number of times, and anything still unsupported is flagged for a human editor instead of published.
+- Open questions: the writer sees only the brief, so the checker needs the full page text kept per run (today `ResearchState` keeps URLs only); whether the checker should be a different model from the writer; and how to measure it (for example, articles with planted false quotes and the share the checker catches, plus the false alarm rate on clean articles). None of this is built or tested.
 
 *Later*
 - Source judging: two research designs to compare. The current design (A) runs the research agent twice and the orchestrator keeps the better brief. It judges the finished text, not the sources behind it, and the second call repeats the first instead of filling gaps. The alternative (B) moves evaluation into the research step: the agent reads more than the required number of candidate sources, an evaluator keeps the best ones (for example by credibility, relevance, and variety of domains), and one brief is written from only those. The hypothesis is that B produces better sourced articles at similar or lower cost, because it spends effort on the sources and writes one brief instead of two. This is untested. A fair comparison runs the same topics through both designs and scores the briefs with the source breadth judge plus a second judge for article quality, since breadth alone only shows whether a design reaches enough sources. The evaluator would need explicit criteria and a typed output (the chosen URLs and a reason for each).
