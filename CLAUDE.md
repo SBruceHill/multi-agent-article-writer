@@ -2,12 +2,13 @@
 
 Portfolio project: a multi-agent system (OpenAI Agents SDK) where an orchestrator coordinates a research agent, an image agent, and two writer agents chosen by handoff, with Pydantic-typed handoffs, traces, and LLM-judge evals.
 
-This repo is private until Bruce decides to publish it. Do not push, change visibility, or create remotes unless asked.
+Do not push, change repository settings, or create remotes unless asked.
 
 ## Writing rules (README, docs, comments, commit messages)
 - Never use em dashes, or hyphens and en dashes as punctuation. Use commas, colons, parentheses, or a new sentence.
 - Plain, specific language. No hype words ("robust", "seamless", "cutting-edge", "leverage").
-- State real results only. If a number or claim is not backed by code or an eval in this repo, leave a TODO for Bruce.
+- State real results only. If a number or claim is not backed by code or an eval in this repo, leave an HTML comment (`<!-- TODO: ... -->`) instead of a visible placeholder.
+- Public docs use neutral third person: no author name or first person ("I", "my") in the README or `docs/`. The byline in the README's About section is the exception.
 
 ## README structure (keep this order)
 1. Title and one-line tagline
@@ -27,10 +28,10 @@ This repo is private until Bruce decides to publish it. Do not push, change visi
 10. Roadmap (built vs. proposed, kept separate)
 
 ## Product brief
-`docs/product-brief.md` follows Product, Persona, Journey, Steps, Outcome, Fail line. Do not invent product facts. Mark anything Bruce has not confirmed as `Status: Draft`.
+`docs/product-brief.md` follows Product, Persona, Journey, Steps, Outcome, Fail line. Do not invent product facts. Mark anything the author has not confirmed as `Status: Draft`.
 
 ## Manual vs. AI-assisted work
-Some work here is deliberately hand-coded so Bruce learns it for interviews. If a request says "manual", or a file or function is marked `# MANUAL`, explain, review, and answer questions, but do not write the implementation.
+Some work here is deliberately hand-coded to deepen understanding of the core patterns. If a request says "manual", or a file or function is marked `# MANUAL`, explain, review, and answer questions, but do not write the implementation.
 
 ## Conventions
 - Python 3.11+. Lint with `ruff check .`; test with `pytest`.

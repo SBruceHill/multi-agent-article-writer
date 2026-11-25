@@ -1,27 +1,31 @@
 # Multi-Agent Article Writer
 
-An orchestrator agent researches a topic, picks the right writer for it, and produces a sourced article with a generated hero image.
+An orchestrator agent researches a topic, picks a writing style for it, and produces a draft article with a hero image, citing only web pages its research agent actually read.
 
 > Status: working command line tool with offline tests and an eval runner. Guardrails and an HTTP API are not built yet (see Roadmap).
 
 ## The problem
-When I ask one model for an article in a single prompt, it has to research, check sources, and write all in one pass, so the result reads smoothly but says little: general claims, few specific facts, and citations I can't trace to a page the model actually read. One voice also doesn't fit every topic, because a contested policy question needs an argument while a story about people needs scenes and characters. [MY EXAMPLE]
+Ask a chat assistant for a researched article and the research, the sourcing, and the writing all happen in one conversation, under rules the user can't set or check. The result can read smoothly but say little: general claims, few specific facts, and citations that are hard to trace to a page the model actually read. One voice also doesn't fit every topic, because a contested policy question needs an argument while a story about people needs scenes and characters.
+<!-- TODO: add a short real-world example. -->
 
 ## The solution
-An orchestrator agent coordinates specialists instead of writing anything itself:
-- A **research agent** searches the web (Brave, with DuckDuckGo as a fallback), reads at least 4 full pages of 2,000 or more characters each, and writes a cited brief.
+An orchestrator agent splits the job into steps, with the sourcing rule enforced in code, and coordinates specialists instead of writing anything itself:
+- A **research agent** searches the web (Brave, with DuckDuckGo as a fallback), reads at least 4 full pages of 2,000 or more characters each, and writes a cited brief. A code check rejects a brief that cites a page the agent did not read, or fewer than 4 pages it did read, and sends it back with feedback (up to 2 retries).
 - An **image agent** writes one image prompt and generates a hero image.
-- A **journalist** (provocative, opinionated) or a **storyteller** (narrative, scene based) writes the article. The orchestrator picks one through a handoff that carries a typed `WriterSelectionInfo` (which writer, and why).
-- LLM-judge evals score whether a research brief cites enough distinct sources.
+- A **journalist** (provocative, opinionated) or a **storyteller** (narrative, scene based) writes the article. The orchestrator picks one through a handoff that carries a typed `WriterSelectionInfo` (which writer, and why). A content team can add writer personas to match its own styles: each one is a prompt file in `prompts/`, an agent in `agents/writers.py`, a handoff in `agents/orchestrator.py`, and one line in the orchestrator prompt describing when to use it. The orchestrator still makes the choice, with more styles to choose from. Only the two built in writers have been run so far.
+- Every search, fetch, tool call, and handoff is recorded in an OpenAI trace. An eval runner scores research briefs over a fixed topic list with the code check and an LLM judge.
+
+**Why not a general chat assistant?** ChatGPT, Claude, Gemini, and Grok can search the web and write a cited article. This project has not been compared with them on article quality, so it makes no claim there. What it adds is control: the source rule is enforced and unit tested in code, each writing style is a fixed prompt chosen per topic with a recorded reason, each run leaves a trace of what was read, and a change to a model or prompt can be measured with the same evals. It runs from the command line, so a team can script it, inspect it, and adjust it.
 
 ## In action
-TODO (Bruce): add these files under `docs/examples/`, then replace each placeholder with the real link or excerpt.
-
-- **Sample article:** `docs/examples/sample-article.md` (TODO: one full article from a real run, unedited)
-- **Hero image:** `docs/examples/hero.jpg` (TODO: the image generated for that article, shown here with `![Hero image](docs/examples/hero.jpg)`)
-- **Run log:** `docs/examples/verbose-log.txt` (TODO: a `--verbose` excerpt from the same run showing searches, fetches, the source check, and the writer chosen)
-- **Trace:** `docs/examples/trace.png` (TODO: a screenshot of the run in the OpenAI Traces dashboard, showing the two research calls, the image call, and the handoff)
-- **Demo link:** TODO
+Examples from one real run will be added under `docs/examples/`.
+<!-- TODO: add these files, then replace this section with links and excerpts:
+- docs/examples/sample-article.md: one full article from a real run, unedited
+- docs/examples/hero.jpg: the image generated for that article, embedded with ![Hero image](docs/examples/hero.jpg)
+- docs/examples/verbose-log.txt: a --verbose excerpt from the same run (searches, fetches, the source check, the writer chosen)
+- docs/examples/trace.png: the run in the OpenAI Traces dashboard (two research calls, the image call, the handoff)
+- Demo link
+-->
 
 ## Architecture
 
@@ -39,7 +43,8 @@ TODO (Bruce): add these files under `docs/examples/`, then replace each placehol
 - Searches are spaced and retried so parallel tool calls do not trigger rate limits.
 - Secrets live in `.env` only. Models, limits, and paths can be overridden with `ARTICLE_WRITER_*` environment variables (see `src/article_writer/config.py`).
 - The unit tests make no network or API calls.
-- **TODO (Bruce): latency and cost per article.** Not measured yet, so no target or figure is given here. To fill in after several timed full runs with token counts per agent.
+- Latency and cost per article: not measured yet, so no target or figure is given here.
+  <!-- TODO: fill in after several timed full runs with token counts per agent. -->
 
 ### API and interfaces
 | Entry point | Input | Output |
@@ -60,17 +65,19 @@ Agent tools (what the agents call):
 ```mermaid
 flowchart LR
     U["Topic (CLI)"] --> O["Orchestrator"]
-    O -->|"tool, called twice"| R["Research agent"]
-    R --> S["search_web (Brave, ddgs fallback)"]
-    R --> F["fetch_and_extract (Trafilatura)"]
-    O -->|"tool"| I["Image agent"]
-    I --> G["generate_image"]
+    O <-->|"tool, called twice"| R["Research agent"]
+    R <--> S["search_web (Brave, ddgs fallback)"]
+    R <--> F["fetch_and_extract (Trafilatura)"]
+    O <-->|"tool"| I["Image agent"]
+    I <--> G["generate_image"]
     O -->|"handoff with WriterSelectionInfo"| W{"Writer"}
     W --> J["Journalist"]
     W --> T["Storyteller"]
     J --> A["Article (.md)"]
     T --> A
 ```
+
+Two way arrows are tool calls: the caller waits for the result and keeps control. The one way handoff passes control to the writer, which produces the final output.
 
 Each research call gets its own `ResearchState` (the set of sources it has read), passed to the tools as the SDK run context, so the two briefs are independent. The set of domains that refuse fetches is shared by the whole process on purpose.
 
@@ -94,7 +101,7 @@ Each research call gets its own `ResearchState` (the set of sources it has read)
 
 **Read the judge's 0% with care.** In an earlier run, before the retry existed, the research agent ended 3 of 10 briefs with a progress note ("Now, I will proceed to synthesize...") instead of a report. The judge scored all 3 `FALSE` because they named sources ("World Nuclear Association"), so it does not catch unfinished briefs. The source check does, which is why it was added. By hand, the judge returned `TRUE` for a one source brief and for an empty brief.
 
-**Limits of these numbers.** One run of 10 topics is a small sample, so the 50% first attempt failure rate is a rough figure and will vary between runs. The CSV keeps the feedback only for the final brief, so it does not show why each first brief failed. The retries were allowed up to 2 rewrites, and 3 topics needed both. TODO (Bruce): repeat the run a few times before quoting a rate, and decide whether a prompt change or a different research model should lower the first attempt failure rate.
+**Limits of these numbers.** One run of 10 topics is a small sample, so the 50% first attempt failure rate is a rough figure and will vary between runs. The CSV keeps the feedback only for the final brief, so it does not show why each first brief failed. The retries were allowed up to 2 rewrites, and 3 topics needed both. Next step: repeat the run several times before quoting a rate, and test whether a prompt change or a different research model lowers the first attempt failure rate.
 
 An earlier run of the same command had 4 of 10 topics fail with `Event loop is closed`, because the runner used one event loop per thread. That is fixed, and the table above is from the fixed runner.
 
@@ -104,7 +111,7 @@ An earlier run of the same command had 4 of 10 topics fail with `Event loop is c
 | Brave Search API first, DuckDuckGo (ddgs) as fallback | ddgs only; Brave's MCP server | Scraping engines through ddgs hit rate limits in this project (hence the throttle and backoff code). A REST call fits behind `search_web` without changing the prompt or the tool's output. An MCP server would expose different tool names and need a Node subprocess. |
 | Per research call state (`ResearchState` in the run context) | A module level set of read URLs | A shared set made the second research call start with the first call's sources already counted, so the two briefs were not independent. |
 | Domains that refuse fetches are cached at module level | Per run cache | A site that blocks one page blocks the rest, and the cache is cheap to share. |
-| Two writer agents chosen by a typed handoff | One writer with a style parameter | Each style keeps its own rules in one prompt, and the handoff records which writer was chosen and why. |
+| Two writer agents chosen by a typed handoff | One writer with a style parameter | Each style keeps its own rules in one prompt, and the handoff records which writer was chosen and why. Adding a style means adding a writer, without changing the existing ones. |
 | Tools are thin wrappers over plain helper functions | Logic inside the tool functions | The helpers can be unit tested without an agent or network (fetch decisions, search backoff, prompt rendering). |
 | Prompts stored as Markdown files with `{PLACEHOLDERS}` | Prompts as Python strings | The prompt text can be read and diffed on its own. Limits like the required source count come from config. |
 | Retry a brief that fails the source check (up to 2 rewrites), then return an error message | Reword the prompt only; force a tool call on every turn; a reasoning model for research | The research agent sometimes ended a turn with a progress note instead of the report, and the SDK treats a turn with no tool call as the final answer. The retry reuses the check's own feedback text, keeps the prompt unchanged, and never hands a stub to the orchestrator. In the eval run above, 5 of 10 first briefs failed the check and 0 of 10 failed after retries. |
@@ -165,7 +172,7 @@ docs/                Product brief (draft)
 ```
 
 ## Deploying this at a customer
-Status: Draft. Three options for Bruce to choose from; none has been tried with a customer. Each assumes the v1.1 HTTP API (see Roadmap), since today the system runs only from the command line.
+Status: Draft. Three candidate deployment shapes; none has been tried with a customer. Each assumes the v1.1 HTTP API (see Roadmap), since today the system runs only from the command line.
 
 | | A. Content team drafting tool | B. Research briefs for analysts | C. Newsroom first drafts |
 |---|---|---|---|

@@ -1,19 +1,21 @@
 # Product brief: Multi-Agent Article Writer
 
-Status: Draft. Nothing here is final until Bruce confirms it. The Product and Personas sections are proposals; J1 is drafted from the code as it stands.
+Status: Draft. No users yet. The Product and Personas sections are working assumptions, not validated with users. J1 is drafted from the code as it stands.
 
 ## Product
 Status: Draft
-- **One-sentence job:** Turn a topic into a researched, cited first draft article with a hero image, in a style that suits the topic.
-- **Who it is for:** Small content teams (one to five people) who publish explainers or features and spend most of their time on research before they can write.
-- **Who pays, or who benefits in a real deployment:** The team's budget owner (a content or marketing lead) pays; the writers and editors benefit because research and a first draft arrive together, with sources listed.
-- **Not a customer yet:** No one uses this today. It is a portfolio project, and nothing here has been tested with a real team.
+- **One-sentence job:** Turn a topic into a first draft article with a hero image, written in a style chosen for the topic, from a brief that cites only web pages the system actually read.
+- **Who it is for:** Small content teams (one to five people) that publish explainers or features and need every claim in a draft traceable to a source an editor can check.
+- **Who pays, or who benefits in a real deployment:** The content or marketing lead who owns the budget pays. Writers and editors benefit: research, sources, and a first draft arrive together, and the editor's job becomes checking and revising, not starting from a blank page.
+- **Why this instead of a general chat assistant:** A chat assistant can search and cite, but the user can't set or check its sourcing rules. Here the rule (at least 4 pages read in full, nothing cited that was not read) is enforced in code, the writing styles are fixed prompts chosen per topic with a recorded reason, and each run leaves a trace. Article quality has not been compared with chat assistants.
+- **Fits the team's voice:** The team can add writer personas for its own styles (for example a house explainer voice or a product update voice). The orchestrator still chooses one writer per topic, now from a wider set. Each persona is a new prompt and a few lines of code, not a configuration setting, and only the two built in writers have been run so far.
+- **Not a customer yet:** Teams that need breaking news, publish ready copy with no editor, or research from private or paywalled sources. The system reads only public web pages and produces drafts for an editor to review.
 
 ## Personas
 Status: Draft
 | Persona | Job they hire this for | Done looks like |
 |---|---|---|
-| Content lead at a small team | Get a sourced first draft on a new topic without spending a morning on research | A Markdown draft with a hero image and a Sources list they can check, ready for an editor |
+| Content lead at a small team | Get a first draft on a new topic, with sources they can check, without doing the research by hand | A Markdown draft with a hero image and a Sources list where every entry is a page the system read, ready for an editor |
 
 ## Journeys
 
