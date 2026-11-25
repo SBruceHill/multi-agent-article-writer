@@ -22,11 +22,16 @@ One article from a real run, with the hero image the image agent generated for i
 
 - [Sample article](docs/examples/the_people_who_keep_small_town_newspapers_alive.md), written from the topic "The people who keep small-town newspapers alive" and saved as the CLI wrote it
 - [Hero image](docs/examples/images/hero_b2ff890c.jpg)
+- [Verbose log](docs/examples/verbose-log.txt) from the same run: searches, page fetches with the running source count, one blocked site, the image call, and the writer chosen (storyteller) with its reason
 
 ![Hero image](docs/examples/images/hero_b2ff890c.jpg)
 
+The OpenAI trace for a run of the same topic, with the nested spans collapsed: the orchestrator calls the research agent twice, then the image agent, then hands off to the storyteller. The whole run took 82 seconds. It is one run, not a latency measurement.
+
+![Trace overview](docs/examples/trace-overview.png)
+
 The sample is one run, not a measure of quality. It is unedited and has not been fact checked: its source list gives titles without URLs, and its quotes and named people have not been compared with the pages the research agent read. v1 has no step that does this (see Roadmap, v1.2).
-<!-- TODO: add docs/examples/verbose-log.txt (a --verbose excerpt: searches, fetches, the source check, the writer chosen), docs/examples/trace.png (the run in the OpenAI Traces dashboard), and a demo link. -->
+<!-- TODO: add a demo link. -->
 
 ## Architecture
 
@@ -173,7 +178,7 @@ src/article_writer/
 tests/               Offline unit tests (no network or API calls)
 notebooks/           The original prototype notebook (kept unchanged)
 docs/                Product brief (draft)
-  examples/          Sample article and its hero image (run log and trace screenshot still to add)
+  examples/          Sample article, hero image, verbose log, and trace screenshot
 ```
 
 ## Deploying this at a customer

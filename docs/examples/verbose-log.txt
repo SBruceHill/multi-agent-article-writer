@@ -1,0 +1,18 @@
+$ article-writer "The people who keep small-town newspapers alive" --verbose
+  ✅ Got 10 results for small-town newspaper sustainability challenges and strategies
+  ✅ Got 10 results for people who keep small-town newspapers alive roles and stories
+  ✅ fetch_and_extract: got 15883 chars from https://www.cjr.org/tow_center/8-strategies-saving-local-new (1/4 sources read)
+  ✅ fetch_and_extract: got 28472 chars from https://coloradosun.com/2023/10/01/coloradans-saving-local-n (1/4 sources read)
+  ❌ researchgate.net blocked the fetch (HTTP 403).
+  ✅ fetch_and_extract: got 37395 chars from https://localnewsinitiative.northwestern.edu/projects/state- (2/4 sources read)
+  ✅ fetch_and_extract: got 4304 chars from https://nebraskapublicmedia.org/en/news/news-articles/newspa (2/4 sources read)
+  ✅ fetch_and_extract: got 30120 chars from https://newengland.com/today/hard-pressed-the-fight-to-save- (3/4 sources read)
+  🚫 Skipped researchgate.net: blocked earlier in this run.
+  ✅ fetch_and_extract: got 17901 chars from https://www.bushcenter.org/publications/keeping-rural-journa (4/4 sources read)
+  ✅ fetch_and_extract: got 5290 chars from https://hiddentrackbottleshop.com/how-local-journalism-is-ev (3/4 sources read)
+  ✅ fetch_and_extract: got 6497 chars from https://startthepresses.substack.com/p/notebook-from-year-2- (4/4 sources read)
+  🎨 Generate image: A warm, nostalgic photograph capturing the essence of a smal...
+  ✅ generate image: Done (output/images/hero_b2ff890c.jpg)
+  ✍ Writer selected: storyteller_agent, Reason: The topic involves a deeply human and community-centered narrative about the people who sustain small-town newspapers, requiring a longform narrative style with characters and scenes to best convey their dedication, challenges, and impact. The research brief highlights personal commitment and communal ties best served by a storyteller approach.
+Article: output/the_people_who_keep_small_town_newspapers_alive.md
+Writer: storyteller_agent
