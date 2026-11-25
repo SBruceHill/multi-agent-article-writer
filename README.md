@@ -136,12 +136,14 @@ An earlier run of the same command had 4 of 10 topics fail with `Event loop is c
 git clone https://github.com/SBruceHill/multi-agent-article-writer.git
 cd multi-agent-article-writer
 python -m venv .venv
-# Windows: .venv\Scripts\activate   macOS/Linux: source .venv/bin/activate
+source .venv/bin/activate   # macOS/Linux
 pip install -e ".[dev]"
-cp .env.example .env   # then add OPENAI_API_KEY (BRAVE_API_KEY is optional)
+cp .env.example .env        # then add OPENAI_API_KEY (BRAVE_API_KEY is optional)
 article-writer "The people who keep small-town newspapers alive" --verbose
 ruff check . && pytest
 ```
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` (you may first need `Set-ExecutionPolicy -Scope Process RemoteSigned`) and copy the env file with `copy .env.example .env`. CI runs ruff and pytest on `ubuntu-latest`.
+
 `--verbose` shows progress messages (searches, fetches, the writer chosen). Without it, only warnings and the final file path print.
 
 ## Project structure
