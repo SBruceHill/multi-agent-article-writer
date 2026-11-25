@@ -21,7 +21,7 @@ async def on_handoff(_ctx: RunContextWrapper, decision: WriterSelectionInfo) -> 
 
 
 orchestrator_agent = Agent(
-    name="orchestrator_agent w/ handoff and styles",
+    name="orchestrator",
     instructions=RECOMMENDED_PROMPT_PREFIX + render("orchestrator"),
     model=ORCHESTRATOR_MODEL,
     tools=[research_agent_as_tool, image_agent_as_tool],

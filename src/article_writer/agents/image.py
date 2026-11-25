@@ -15,6 +15,6 @@ image_generator_agent = Agent(
 
 image_agent_as_tool = image_generator_agent.as_tool(
     tool_name="image_generator_agent",
-    tool_description="Generates a hero image for an article based on a topic and content summary."
+    tool_description="Generates a hero image for an article based on a topic and content summary. "
                      "Supply the topic and content summary for the article.",
 )

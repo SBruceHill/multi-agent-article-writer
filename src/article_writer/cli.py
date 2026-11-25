@@ -72,7 +72,7 @@ async def write_article(topic: str, max_turns: int) -> tuple[str, str]:
 
     from article_writer.agents.orchestrator import orchestrator_agent
 
-    with trace("Article Writer w/ styles", group_id="AIEP", metadata={"experimentID": "001"}):
+    with trace("article-writer"):
         result = await Runner.run(orchestrator_agent, input=topic, max_turns=max_turns)
     # The orchestrator can end its turn with text instead of calling tools and handing off.
     # That leaves a stub, not an article, so fail instead of passing it off as one.
