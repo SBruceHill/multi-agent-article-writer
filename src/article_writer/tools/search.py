@@ -84,6 +84,8 @@ def throttled_text(query: str, page: int):
         wait = interval - (time.monotonic() - _last_search_time)
         if wait > 0:
             time.sleep(wait)
+        if page == 1:
+            logger.info("Searching with %s: %s", "Brave" if brave else "DuckDuckGo", query)
         try:
             if brave:
                 try:
